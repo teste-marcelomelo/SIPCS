@@ -348,15 +348,21 @@ const data = [
 
 ]; // ✅ Fecha o array data
 
-/* ✅ Função para gerar cards premium */
+/* ✅ Função para gerar cards com PROBLEMA, CAUSA e SOLUÇÃO */
 function gerarCard(item, causa, solucao) {
     return `
         <div class="card">
+
             <div class="problemaCardTitle">${item.problema}</div>
+
             <div class="spnFmiTag">SPN ${item.spn} / FMI ${item.fmi}</div>
+
             <div class="card-title">${causa}</div>
+
             <div class="card-content">
-                <div class="solucao">✅ ${solucao}</div>
+                <div class="solucao">
+                    ✅ ${solucao}
+                </div>
             </div>
         </div>
     `;
@@ -371,7 +377,7 @@ function recolherTudo() {
     document.querySelectorAll('.card-content').forEach(c => c.classList.remove('open'));
 }
 
-/* ✅ Renderizar múltiplos cards */
+/* ✅ Renderização dos cards */
 function renderizarBlocos(lista) {
     let html = `
         <div class="btn-group">
@@ -384,53 +390,59 @@ function renderizarBlocos(lista) {
 
     lista.forEach(e => {
         e.causas.forEach((c, i) => {
-            const sol = e.reparos[i] ?? "Sem solução cadastrada";
-            html += gerarCard(e, c, sol);
+            const solucao = e.reparos[i] ?? "Sem solução cadastrada";
+            html += gerarCard(e, c, solucao);
         });
     });
 
     document.getElementById("output").innerHTML = html;
 
-    document.querySelectorAll(".card-title").forEach(title => {
-        title.onclick = () => title.nextElementSibling.classList.toggle("open");
+    document.querySelectorAll(".card-title").forEach(titulo => {
+        titulo.onclick = () => {
+            const content = titulo.nextElementSibling;
+            content.classList.toggle("open");
+        };
     });
 }
 
-/* ✅ Filtros SPN e FMI */
-function buscarPorSPN() {
-    const spn = document.getElementById("spnInput").value;
-    if (!spn) return;
+/* ✅ ✅ ✅ FILTRO COMBINADO SPN + FMI */
+function aplicarFiltrosCombinados() {
+    const spn = document.getElementById("spnInput").value.trim();
+    const fmi = document.getElementById("fmiInput").value.trim();
 
-    if (problemaSelecionado) {
-        const registrosDoProblema = data.filter(x => x.problema === problemaSelecionado);
-        const existeSPN = registrosDoProblema.some(x => x.spn == spn);
-
-        if (!existeSPN) {
-            document.getElementById("output").innerHTML =
-                "<p style='color:#ff8080; padding:20px;'>Nenhum resultado. Tente ajustar filtros.</p>";
-            return;
-        }
+    // Nenhum filtro → não faz nada
+    if (!spn && !fmi) {
+        document.getElementById("output").innerHTML = "";
+        return;
     }
 
-    renderizarBlocos(data.filter(e => e.spn == spn));
-}
+    // ✅ Ambos SPN e FMI preenchidos → FILTRO COMBINADO
+    if (spn && fmi) {
+        const filtrados = data.filter(e => e.spn == spn && e.fmi == fmi);
 
-function buscarPorFMI() {
-    const fmi = document.getElementById("fmiInput").value;
-    if (!fmi) return;
-
-    if (problemaSelecionado) {
-        const registrosDoProblema = data.filter(x => x.problema === problemaSelecionado);
-        const existeFMI = registrosDoProblema.some(x => x.fmi == fmi);
-
-        if (!existeFMI) {
+        if (filtrados.length === 0) {
             document.getElementById("output").innerHTML =
-                "<p style='color:#ff8080; padding:20px;'>Nenhum resultado. Tente ajustar filtros.</p>";
+                "<p style='color:#ff8080;padding:20px;'>Nenhum resultado com SPN e FMI selecionados.</p>";
             return;
         }
+
+        renderizarBlocos(filtrados);
+        return;
     }
 
-    renderizarBlocos(data.filter(e => e.fmi == fmi));
+    // ✅ Apenas SPN preenchido
+    if (spn) {
+        const filtrados = data.filter(e => e.spn == spn);
+        renderizarBlocos(filtrados);
+        return;
+    }
+
+    // ✅ Apenas FMI preenchido
+    if (fmi) {
+        const filtrados = data.filter(e => e.fmi == fmi);
+        renderizarBlocos(filtrados);
+        return;
+    }
 }
 
 /* ✅ Dropdown */
@@ -441,8 +453,11 @@ function atualizarDropdown(texto) {
     dropdownList.innerHTML = "";
     let filtrados = data;
 
-    if (texto)
-        filtrados = filtrados.filter(e => e.problema.toLowerCase().includes(texto.toLowerCase()));
+    if (texto) {
+        filtrados = filtrados.filter(e =>
+            e.problema.toLowerCase().includes(texto.toLowerCase())
+        );
+    }
 
     filtrados.forEach(e => {
         const item = document.createElement("div");
@@ -453,7 +468,9 @@ function atualizarDropdown(texto) {
             dropdownList.style.display = "none";
             searchInput.value = e.problema;
             problemaSelecionado = e.problema;
-            renderizarBlocos(data.filter(x => x.problema === e.problema));
+
+            const relacionados = data.filter(x => x.problema === e.problema);
+            renderizarBlocos(relacionados);
         };
 
         dropdownList.appendChild(item);
@@ -469,20 +486,26 @@ document.addEventListener("click", (e) => {
     if (!e.target.closest(".search-box")) dropdownList.style.display = "none";
 });
 
-/* ✅ Eventos dos inputs */
-document.getElementById("spnInput").addEventListener("input", buscarPorSPN);
-document.getElementById("fmiInput").addEventListener("input", buscarPorFMI);
+/* ✅ Eventos SPN + FMI → agora ambos chamam o filtro combinado */
+document.getElementById("spnInput").addEventListener("input", aplicarFiltrosCombinados);
+document.getElementById("fmiInput").addEventListener("input", aplicarFiltrosCombinados);
 
 /* ✅ Botão LIMPAR */
 document.getElementById("clearBtnFixed").onclick = () => {
     document.getElementById("spnInput").value = "";
     document.getElementById("fmiInput").value = "";
     document.getElementById("problemaSearch").value = "";
+
     dropdownList.style.display = "none";
     document.getElementById("output").innerHTML = "";
+
     problemaSelecionado = null;
 };
 
+</script>
+
+</body>
+</html>
 </script>
 
 </body>
